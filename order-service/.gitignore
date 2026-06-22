@@ -1,0 +1,45 @@
+# ===== Compiled Output =====
+target/
+*.class
+
+# ===== Maven =====
+.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+# ===== IDE =====
+# IntelliJ
+.idea/
+*.iws
+*.iml
+*.ipr
+
+# Eclipse
+.classpath
+.project
+.settings/
+.springBeans
+
+# VS Code
+.vscode/
+
+# ===== Spring Boot =====
+*.jar
+*.war
+*.ear
+
+# ===== Logs =====
+logs/
+*.log
+*.log.*
+
+# ===== Environment & Secrets =====n.env
+.env.*
+application-local.yml
+application-local.properties
+**/src/main/resources/application-prod.yml
+**/src/main/resources/application-prod.properties
+
+# ===== OS =====
+.DS_Store
+Thumbs.db
