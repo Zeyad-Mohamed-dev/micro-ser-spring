@@ -6,8 +6,13 @@ import com.ecommerce.order.model.Order;
 import com.ecommerce.order.model.OrderItem;
 import com.ecommerce.order.model.OrderStatus;
 import com.ecommerce.order.repository.OrderRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.ecommerce.order.events.OrderCreatedEvent;
+import com.ecommerce.order.events.OrderItemEvent;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -18,12 +23,19 @@ import java.util.stream.Collectors;
 @Service
 public class OrderService {
 
+    private static final Logger logger = LoggerFactory.getLogger(OrderService.class);
+    private static final String ORDER_CREATED_TOPIC = "order-created";
+
     private final OrderRepository orderRepository;
     private final InventoryClient inventoryClient;
+    private final KafkaTemplate<String, OrderCreatedEvent> kafkaTemplate;
 
-    public OrderService(OrderRepository orderRepository, InventoryClient inventoryClient) {
+    public OrderService(OrderRepository orderRepository,
+                        InventoryClient inventoryClient,
+                        KafkaTemplate<String, OrderCreatedEvent> kafkaTemplate) {
         this.orderRepository = orderRepository;
         this.inventoryClient = inventoryClient;
+        this.kafkaTemplate = kafkaTemplate;
     }
 
     @Transactional
@@ -52,6 +64,7 @@ public class OrderService {
         order.setTotalAmount(total);
 
         Order saved = orderRepository.save(order);
+        publishOrderCreatedEvent(saved);
         return toResponse(saved);
     }
 
@@ -75,6 +88,21 @@ public class OrderService {
                 .collect(Collectors.toList());
     }
 
+    private void publishOrderCreatedEvent(Order order) {
+        List<OrderItemEvent> eventItems = order.getItems().stream()
+                .map(item -> new OrderItemEvent(item.getProductSku(), item.getQuantity()))
+                .collect(Collectors.toList());
+
+        OrderCreatedEvent event = new OrderCreatedEvent(
+                order.getOrderNumber(),
+                order.getCustomerEmail(),
+                eventItems
+        );
+
+        logger.info("Publishing order-created event for orderNumber={}", order.getOrderNumber());
+        kafkaTemplate.send(ORDER_CREATED_TOPIC, order.getOrderNumber(), event);
+    }
+
     private OrderResponse toResponse(Order order) {
         List<OrderItemResponse> itemResponses = order.getItems().stream()
                 .map(item -> new OrderItemResponse(
@@ -82,8 +110,7 @@ public class OrderService {
                         item.getProductSku(),
                         item.getQuantity(),
                         item.getUnitPrice(),
-                        item.getSubtotal()
-                ))
+                        item.getSubtotal()))
                 .collect(Collectors.toList());
 
         return new OrderResponse(
@@ -93,7 +120,6 @@ public class OrderService {
                 order.getStatus(),
                 order.getTotalAmount(),
                 order.getCreatedAt(),
-                itemResponses
-        );
+                itemResponses);
     }
 }
