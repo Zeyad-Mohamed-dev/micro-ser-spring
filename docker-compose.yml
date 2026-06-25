@@ -38,6 +38,7 @@ services:
       - "8080:8080"
     environment:
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://service-registry:8761/eureka
+      - JWT_SECRET=change-this-secret-key-in-production-change-this-secret-key
     depends_on:
       - service-registry
     networks:
