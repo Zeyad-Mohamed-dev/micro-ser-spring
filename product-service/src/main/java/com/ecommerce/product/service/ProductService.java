@@ -2,6 +2,8 @@ package com.ecommerce.product.service;
 
 import com.ecommerce.product.dto.ProductRequest;
 import com.ecommerce.product.dto.ProductResponse;
+import com.ecommerce.product.exception.ProductAlreadyExistsException;
+import com.ecommerce.product.exception.ProductNotFoundException;
 import com.ecommerce.product.model.Product;
 import com.ecommerce.product.repository.ProductRepository;
 import org.springframework.stereotype.Service;
@@ -19,6 +21,12 @@ public class ProductService {
     }
 
     public ProductResponse createProduct(ProductRequest request) {
+        if (productRepository.findBySku(request.getSku()).isPresent()) {
+            throw new ProductAlreadyExistsException(
+                "Product with SKU " + request.getSku() + " already exists"
+            );
+        }
+
         Product product = new Product(
                 request.getSku(),
                 request.getName(),
@@ -26,8 +34,16 @@ public class ProductService {
                 request.getPrice(),
                 request.getCategory()
         );
+
         Product saved = productRepository.save(product);
         return toResponse(saved);
+    }
+
+    public ProductResponse getProductBySku(String sku) {
+        return productRepository.findBySku(sku)
+                .map(this::toResponse)
+                .orElseThrow(() -> new ProductNotFoundException(
+                    "Product not found with SKU: " + sku));
     }
 
     public List<ProductResponse> getAllProducts() {
@@ -38,9 +54,10 @@ public class ProductService {
     }
 
     public ProductResponse getProductById(Long id) {
-        Product product = productRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Product not found with id: " + id));
-        return toResponse(product);
+        return productRepository.findById(id)
+                .map(this::toResponse)
+                .orElseThrow(() -> new ProductNotFoundException(
+                    "Product not found with id: " + id));
     }
 
     public List<ProductResponse> getProductsByCategory(String category) {
